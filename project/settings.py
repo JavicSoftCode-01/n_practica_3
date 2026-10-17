@@ -1,13 +1,8 @@
-"""
-Django settings for project.
-"""
-
 import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Carga segura de variables de entorno desde .env si existe
 _env_path = BASE_DIR / '.env'
 if _env_path.is_file():
     with open(_env_path, 'r', encoding='utf-8') as _f:

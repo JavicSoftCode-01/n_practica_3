@@ -3,7 +3,6 @@ set -e
 
 echo "==> Esperando a que PostgreSQL esté disponible..."
 
-# Espera activa a que el socket de PostgreSQL acepte conexiones
 python - << 'EOF'
 import socket
 import time

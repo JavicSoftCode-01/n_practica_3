@@ -1,11 +1,4 @@
-/* ==========================================================================
-   SISTEMA DE DISEÑO EMPRESARIAL (MODO CLARO - 5 FAMILIAS DE COLOR)
-   1. Primary: Corporate Blue (#1e40af, #2563eb)
-   2. Secondary: Slate (#475569, #334155, #64748b)
-   3. Accent: Sky/Cyan (#0284c7)
-   4. Neutral: Canvas (#f8fafc), Card (#ffffff), Text (#0f172a), Border (#e2e8f0)
-   5. Support (Semántica): Success (#059669), Error (#dc2626), Info (#2563eb)
-   ========================================================================== */
+
 :root {
   --primary: #1e40af;
   --primary-hover: #1d4ed8;
@@ -53,7 +46,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Header de Navegación */
+
 header {
   background-color: var(--bg-card);
   border-bottom: 1px solid var(--border-subtle);
@@ -116,7 +109,7 @@ header {
   box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2);
 }
 
-/* Layout principal: Separación optimizada de 30px y expansión fluida de la tabla */
+
 .main-container {
   display: flex;
   justify-content: flex-start;
@@ -127,7 +120,7 @@ header {
   padding: 2rem;
   gap: 30px;
   flex: 1;
-  /* Compatibilidad con especificación base 20% y 70% */
+  
   --legacy-spec-form: 20%;
   --legacy-spec-table: 70%;
 }
@@ -230,7 +223,7 @@ input.input-success {
   border-color: var(--success) !important;
 }
 
-/* Caja informativa inferior con icono SVG */
+
 .info-feedback {
   display: flex;
   align-items: flex-start;
@@ -290,7 +283,7 @@ input.input-success {
   cursor: not-allowed;
 }
 
-/* Tabla Corporativa */
+
 .table-container {
   width: 100%;
   overflow-x: auto;
@@ -359,7 +352,7 @@ tbody tr:last-child td {
   margin-bottom: 0.75rem;
 }
 
-/* Toast Notification System */
+
 #toast-container {
   position: fixed;
   top: 1.25rem;
@@ -467,7 +460,7 @@ footer {
   margin-top: auto;
 }
 
-/* Responsividad */
+
 @media (max-width: 820px) {
   .main-container {
     flex-direction: column;

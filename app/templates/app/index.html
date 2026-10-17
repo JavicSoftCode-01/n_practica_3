@@ -10,14 +10,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/styles.css' %}">
-  <!-- Especificación de distribución: 40% formulario y 50% tabla (Evolución de la arquitectura 20% y 70%) -->
 </head>
 <body>
 
-  <!-- Contenedor flotante de notificaciones Toast -->
   <aside id="toast-container" aria-live="polite" aria-atomic="true"></aside>
 
-  <!-- Encabezado de la aplicación -->
   <header>
     <div class="brand-group">
       <div class="brand-icon" aria-hidden="true">
@@ -39,11 +36,8 @@
     </div>
   </header>
 
-  <!-- Layout Principal: 40% formulario (izq) y 50% tabla (der) -->
-  <!-- Especificación de distribución: 40% formulario y 50% tabla (Evolución de la arquitectura 20% y 70%) -->
-  <main class="main-container" data-spec-form="40%" data-spec-table="50%">
+  <main class="main-container" data-spec-form="40% (20%)" data-spec-table="50% (70%)">
 
-    <!-- Panel Izquierdo: Formulario de Registro (40% ancho) -->
     <section class="panel-form" id="panel-formulario" aria-labelledby="form-heading">
       <div class="panel-header">
         <div>
@@ -123,7 +117,6 @@
       </form>
     </section>
 
-    <!-- Panel Derecho: Tabla de Personas (50% ancho) -->
     <section class="panel-table" id="panel-tabla" aria-labelledby="table-heading">
       <div class="panel-header">
         <div>
@@ -191,9 +184,6 @@
       const FECHA_MIN = '1970-01-01';
       const FECHA_MAX = '2100-12-31';
 
-      // =========================================================================
-      // SISTEMA DE TOAST PROFESIONAL EN ESPAÑOL
-      // =========================================================================
       function showToast(title, message, type = 'info', duration = 4500) {
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
@@ -252,9 +242,6 @@
         toastContainer.appendChild(toast);
       }
 
-      // =========================================================================
-      // TRADUCTOR DE ERRORES HUMANIZADO (CERO INGLÉS TÉCNICO AL USUARIO)
-      // =========================================================================
       function traducirError(err) {
         const msg = String(err && err.message ? err.message : err);
         if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('connection refused')) {
@@ -288,9 +275,6 @@
         return div.innerHTML;
       }
 
-      // =========================================================================
-      // VALIDACIONES INLINE Y FEEDBACK DE CAMPOS
-      // =========================================================================
       function limpiarErroresCampos() {
         nombresInput.classList.remove('input-error', 'input-success');
         fechaInput.classList.remove('input-error', 'input-success');
@@ -327,7 +311,6 @@
         return null;
       }
 
-      // Validación en tiempo real (al escribir o perder foco)
       nombresInput.addEventListener('input', () => {
         const val = nombresInput.value.trim();
         if (!val) {
@@ -363,9 +346,6 @@
         }
       });
 
-      // =========================================================================
-      // CARGA Y RENDERIZADO DE PERSONAS
-      // =========================================================================
       async function cargarPersonas() {
         try {
           const res = await fetch('/api/personas', { credentials: 'same-origin' });
@@ -433,9 +413,6 @@
         }).join('');
       }
 
-      // =========================================================================
-      // ENVÍO DE FORMULARIO
-      // =========================================================================
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         limpiarErroresCampos();
@@ -443,7 +420,6 @@
         const nombres = nombresInput.value.trim();
         const fecha = fechaInput.value;
 
-        // Validación 1: Nombres
         const errNombres = validarNombres(nombres);
         if (errNombres) {
           nombresInput.classList.add('input-error');
@@ -454,7 +430,6 @@
           return;
         }
 
-        // Validación 2: Fecha
         const errFecha = validarFecha(fecha);
         if (errFecha) {
           fechaInput.classList.add('input-error');
@@ -465,7 +440,6 @@
           return;
         }
 
-        // Estado visual de carga
         btnGuardar.disabled = true;
         btnText.textContent = 'Guardando registro...';
 
@@ -520,7 +494,6 @@
         }
       });
 
-      // Carga inicial
       cargarPersonas();
     });
   </script>
