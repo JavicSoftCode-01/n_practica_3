@@ -1,38 +1,52 @@
 import json
 from django.http import HttpResponseNotAllowed, JsonResponse
-from django.shortcuts import render
+from django.utils.decorators import method_decorator
+from django.views import View
 from django.views.decorators.csrf import csrf_exempt
+from django.views.generic import TemplateView
 from pydantic import ValidationError as PydanticValidationError
 
 from app.models import Persona
 from app.schemas import PersonaCreate, PersonaOut
 
 
-def index(request):
+class IndexView(TemplateView):
     """
-    Renderiza la vista principal dividida horizontalmente:
-    20% formulario (izquierda) y 70% tabla de datos (derecha).
+    Vista basada en clases (CBV) para el portal corporativo.
+    Renderiza la interfaz principal (40% formulario y 50% tabla, con base académica 20% y 70%).
     """
-    return render(request, 'app/index.html')
+    template_name = 'app/index.html'
 
 
-@csrf_exempt
-def api_personas_bridge(request):
+@method_decorator(csrf_exempt, name='dispatch')
+class PersonaApiBridgeView(View):
     """
-    Vista puente para despachar /api/personas cuando se utiliza
-    el servidor de desarrollo WSGI de Django (python manage.py runserver).
+    Controlador basado en clases (CBV) para el despacho de peticiones RESTful a /api/personas.
+    Aplica serialización y deserialización estricta con Pydantic garantizando compatibilidad
+    total entre el servidor Django clásico (WSGI) y el servidor FastAPI (ASGI).
     """
-    if request.method == 'GET':
+    http_method_names = ['get', 'post']
+
+    def get(self, request, *args, **kwargs):
+        """
+        Serializa y retorna la lista completa de registros ordenados descendentemente por ID.
+        """
         personas = Persona.objects.all().order_by('-id')
         data = [PersonaOut.model_validate(p).model_dump(mode='json') for p in personas]
         return JsonResponse(data, safe=False, status=200)
 
-    elif request.method == 'POST':
+    def post(self, request, *args, **kwargs):
+        """
+        Valida el payload entrante con PersonaCreate y persiste el registro en PostgreSQL.
+        """
         try:
             body = json.loads(request.body.decode('utf-8'))
             payload = PersonaCreate(**body)
         except json.JSONDecodeError:
-            return JsonResponse({'error': 'El formato de los datos enviados no es un JSON válido.'}, status=400)
+            return JsonResponse(
+                {'error': 'El formato de los datos enviados no es un JSON válido.'},
+                status=400
+            )
         except PydanticValidationError as e:
             mensajes = []
             for err in e.errors():
@@ -52,5 +66,10 @@ def api_personas_bridge(request):
             status=201,
         )
 
-    else:
+    def http_method_not_allowed(self, request, *args, **kwargs):
         return HttpResponseNotAllowed(['GET', 'POST'])
+
+
+# Aliases para compatibilidad con llamadas directas
+index = IndexView.as_view()
+api_personas_bridge = PersonaApiBridgeView.as_view()

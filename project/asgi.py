@@ -22,5 +22,13 @@ application = FastAPI(
     openapi_url=None,
 )
 
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+static_dir = BASE_DIR / 'app' / 'static'
+if static_dir.exists():
+    application.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
 application.mount("/api", api_app)
 application.mount("/", django_app)
