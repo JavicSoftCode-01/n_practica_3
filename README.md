@@ -21,35 +21,40 @@ Plataforma empresarial de gestión de registros implementada sobre una arquitect
 
 ## Arquitectura del Sistema
 
-```text
-                               ┌──────────────────────────────────────────────────────────┐
-                               │                    Navegador Web / Cliente API           │
-                               └────────────────────────────┬─────────────────────────────┘
-                                                            │ HTTP / ASGI
-                                                            ▼
-                               ┌──────────────────────────────────────────────────────────┐
-                               │                 Servidor ASGI: Uvicorn                   │
-                               │                   (Puerto 8000)                          │
-                               └──────────────┬───────────────────────────┬───────────────┘
-                                              │                           │
-                   Rutas Web Tradicionales    │                           │ Sub-aplicación ASGI
-                   (HTML / CBVs / Estáticos)  ▼                           ▼ (/api/v1/*)
-                 ┌──────────────────────────────────────┐     ┌───────────────────────────┐
-                 │          Django 5.2.18 Core          │     │       FastAPI 0.115.0     │
-                 │  - IndexView (CBV)                   │     │  - Pydantic v2 DTOs       │
-                 │  - PersonaApiBridgeView (CBV)        │     │  - Serializers            │
-                 │  - Archivos Estáticos (CSS / SVG)    │     │  - Docs OpenAPI (/docs)   │
-                 └──────────────────┬───────────────────┘     └─────────────┬─────────────┘
-                                    │                                       │
-                                    │ ORM Relacional                        │ ORM Relacional
-                                    └───────────────────┬───────────────────┘
-                                                        │
-                                                        ▼
-                                       ┌───────────────────────────────────┐
-                                       │       PostgreSQL 15 Database      │
-                                       │ - DDL CheckConstraints (Nombres)  │
-                                       │ - DDL CheckConstraints (Fechas)   │
-                                       └───────────────────────────────────┘
+```mermaid
+flowchart TD
+    Client["Navegador Web / Cliente API"] -->|"Peticiones HTTP"| Uvicorn["Servidor ASGI: Uvicorn (Puerto 8000)"]
+    
+    subgraph ASGI["Núcleo Híbrido ASGI (project.asgi:application)"]
+        Uvicorn -->|"Rutas Web Tradicionales (/)"| Django["Django 5.2.18 Core"]
+        Uvicorn -->|"Sub-aplicación ASGI (/api/v1/*)"| FastAPI["FastAPI 0.115.0"]
+        
+        subgraph DjangoLayer["Capa Django"]
+            CBV["Vistas Basadas en Clases<br/>(IndexView, PersonaApiBridgeView)"]
+            Static["Archivos Estáticos<br/>(CSS, SVG Icons)"]
+            DjangoORM["Django ORM Relacional"]
+            CBV --> DjangoORM
+        end
+        
+        subgraph FastAPILayer["Capa FastAPI"]
+            DTO["Pydantic v2 Schemas & DTOs<br/>(PersonaCreateSerializer, PersonaOutSerializer)"]
+            OpenAPI["Docs OpenAPI / Swagger<br/>(/docs, /redoc)"]
+            FastAPIORM["Django ORM Bridge"]
+            DTO --> FastAPIORM
+        end
+        
+        Django --> DjangoLayer
+        FastAPI --> FastAPILayer
+    end
+    
+    DjangoORM -->|"Consultas / Migraciones"| DB[(PostgreSQL 15 Database)]
+    FastAPIORM -->|"Consultas / Inserciones"| DB
+    
+    subgraph DBLayer["Restricciones DDL PostgreSQL"]
+        Check1["CheckConstraint: Nombres (2-4 palabras)"]
+        Check2["CheckConstraint: Fechas (1970 - 2100)"]
+    end
+    DB -.-> DBLayer
 ```
 
 ---

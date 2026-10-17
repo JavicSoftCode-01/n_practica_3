@@ -97,29 +97,35 @@ INFO:     Uvicorn running on http://0.0.0.0:8000
 
 El archivo `.github/workflows/ci.yml` automatiza el ciclo de vida del software mediante dos etapas secuenciales obligatorias:
 
-```text
-[ Desarrollador ]
-       │
-       ▼ (git push / pull request)
-[ GitHub Repository ]
-       │
-       ▼ (Workflow Trigger: ci.yml)
-[ GitHub Actions Runner ]
-       │
-       ├─► Job 1: Pruebas Automatizadas y Migraciones
-       │     ├─ Servicio PostgreSQL 15 en contenedor (postgres:15-alpine)
-       │     ├─ Entorno Python 3.10 con caché pip activada
-       │     ├─ Instalación de dependencias (requirements.txt)
-       │     ├─ Ejecución de migraciones DDL ('python manage.py migrate')
-       │     └─ Ejecución de suite de pruebas ('python manage.py test -v 2') [100% OK]
-       │
-       ▼ (requires: test con 0 fallos)
-       ├─► Job 2: Construcción, Empaquetado y Publicación Docker
-             ├─ Configuración de Docker Buildx
-             ├─ Compilación de imagen OCI ('docker build -t django-app:ci-build .')
-             ├─ Empaquetado binario ('docker save -o django-app-image.tar')
-             ├─ Almacenamiento seguro del artefacto en GitHub Actions
-             └─ Etiquetado y publicación simulada en registro de imágenes
+```mermaid
+flowchart TD
+    Dev["Desarrollador"] -->|"git push / pull request"| Repo["GitHub Repository"]
+    Repo -->|"Trigger: ci.yml"| Runner["GitHub Actions Runner"]
+    
+    subgraph Job1["Job 1: Pruebas Automatizadas y Migraciones"]
+        DBService["Servicio PostgreSQL 15<br/>(postgres:15-alpine)"]
+        SetupPy["Configurar Python 3.10 + Caché pip"]
+        InstallDep["Instalar dependencias<br/>(requirements.txt)"]
+        Migrate["Ejecutar migraciones DDL<br/>(python manage.py migrate)"]
+        RunTests["Ejecutar pruebas<br/>(python manage.py test -v 2)<br/>100% OK"]
+        
+        DBService -.-> Migrate
+        SetupPy --> InstallDep --> Migrate --> RunTests
+    end
+    
+    Runner --> Job1
+    
+    subgraph Job2["Job 2: Construcción y Empaquetado Docker"]
+        Buildx["Configurar Docker Buildx"]
+        BuildImg["Compilar imagen OCI<br/>(docker build -t django-app:ci-build .)"]
+        SaveTar["Empaquetar binario<br/>(docker save -o django-app-image.tar)"]
+        UploadArt["Publicar artefacto<br/>(upload-artifact@v4)"]
+        TagPush["Etiquetado y publicación<br/>(Docker Hub simulado)"]
+        
+        Buildx --> BuildImg --> SaveTar --> UploadArt --> TagPush
+    end
+    
+    Job1 -->|"needs: test (0 fallos)"| Job2
 ```
 
 ### Especificación de Jobs en GitHub Actions
