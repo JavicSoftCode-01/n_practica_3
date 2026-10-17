@@ -6,6 +6,13 @@ import django.core.validators
 from django.db import migrations, models
 
 
+def get_check_constraint(q, name):
+    import django
+    if django.VERSION >= (5, 1):
+        return models.CheckConstraint(condition=q, name=name)
+    return models.CheckConstraint(check=q, name=name)
+
+
 class Migration(migrations.Migration):
 
     initial = True
@@ -41,22 +48,22 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='persona',
-            constraint=models.CheckConstraint(
-                check=models.Q(('nombres_completos__regex', '^[A-Za-zÁÉÍÓÚáéíóúÑñÜü]+( [A-Za-zÁÉÍÓÚáéíóúÑñÜü]+){1,3}$')),
+            constraint=get_check_constraint(
+                models.Q(('nombres_completos__regex', '^[A-Za-zÁÉÍÓÚáéíóúÑñÜü]+( [A-Za-zÁÉÍÓÚáéíóúÑñÜü]+){1,3}$')),
                 name='check_nombres_completos_regex'
             ),
         ),
         migrations.AddConstraint(
             model_name='persona',
-            constraint=models.CheckConstraint(
-                check=models.Q(('fecha_nacimiento__gte', datetime.date(1970, 1, 1))),
+            constraint=get_check_constraint(
+                models.Q(('fecha_nacimiento__gte', datetime.date(1970, 1, 1))),
                 name='check_fecha_nacimiento_gte_1970'
             ),
         ),
         migrations.AddConstraint(
             model_name='persona',
-            constraint=models.CheckConstraint(
-                check=models.Q(('fecha_nacimiento__lte', datetime.date(2100, 12, 31))),
+            constraint=get_check_constraint(
+                models.Q(('fecha_nacimiento__lte', datetime.date(2100, 12, 31))),
                 name='check_fecha_nacimiento_lte_2100'
             ),
         ),

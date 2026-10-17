@@ -28,6 +28,13 @@ def validate_fecha_nacimiento(value):
         )
 
 
+def get_check_constraint(q, name):
+    import django
+    if django.VERSION >= (5, 1):
+        return models.CheckConstraint(condition=q, name=name)
+    return models.CheckConstraint(check=q, name=name)
+
+
 class Persona(models.Model):
     nombres_completos = models.CharField(
         max_length=60,
@@ -45,16 +52,16 @@ class Persona(models.Model):
         verbose_name_plural = "Personas"
         ordering = ['-id']
         constraints = [
-            models.CheckConstraint(
-                check=models.Q(nombres_completos__regex=REGEX_NOMBRES_COMPLETOS),
+            get_check_constraint(
+                models.Q(nombres_completos__regex=REGEX_NOMBRES_COMPLETOS),
                 name='check_nombres_completos_regex',
             ),
-            models.CheckConstraint(
-                check=models.Q(fecha_nacimiento__gte=FECHA_MINIMA),
+            get_check_constraint(
+                models.Q(fecha_nacimiento__gte=FECHA_MINIMA),
                 name='check_fecha_nacimiento_gte_1970',
             ),
-            models.CheckConstraint(
-                check=models.Q(fecha_nacimiento__lte=FECHA_MAXIMA),
+            get_check_constraint(
+                models.Q(fecha_nacimiento__lte=FECHA_MAXIMA),
                 name='check_fecha_nacimiento_lte_2100',
             ),
         ]
