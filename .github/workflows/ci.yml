@@ -1,0 +1,96 @@
+name: Pipeline CI/CD Django + FastAPI
+
+on:
+  push:
+    branches:
+      - ci-setup
+      - main
+  pull_request:
+    branches:
+      - ci-setup
+      - main
+
+jobs:
+  test:
+    name: Pruebas Automatizadas y Migraciones
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: practican3
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      POSTGRES_DB: practican3
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      SECRET_KEY: django-ci-github-actions-secret-key-test
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Instalar dependencias desde requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install --no-cache-dir -r requirements.txt
+
+      - name: Aplicar migraciones en PostgreSQL
+        run: |
+          python manage.py migrate --noinput
+
+      - name: Ejecutar pruebas automatizadas
+        run: |
+          python manage.py test -v 2
+
+  build-docker:
+    name: Construcción, Empaquetado y Publicación Docker
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 1. Construir imagen Docker
+        run: |
+          docker build -t django-app:ci-build .
+
+      - name: 2. Empaquetar imagen en binario tar
+        run: |
+          docker save django-app:ci-build -o django-app-image.tar
+
+      - name: 3. Subir imagen como artefacto de GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: django-app-artifact
+          path: django-app-image.tar
+          retention-days: 7
+
+      - name: 4. Etiquetado y publicación simulada en DockerHub
+        run: |
+          docker tag django-app:ci-build dummyuser/django-app:latest
+          echo "Simulando autenticación en DockerHub..."
+          echo "Simulando push de la imagen: docker push dummyuser/django-app:latest"
+          echo "Imagen django-app:latest preparada exitosamente para distribución."

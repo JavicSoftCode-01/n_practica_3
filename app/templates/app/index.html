@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sistema híbrido Django + FastAPI para registro de personas con validación estricta y pipeline CI/CD.">
+  <title>Sistema de Gestión de Personas - Django + FastAPI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --accent: #06b6d4;
+      --success: #10b981;
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.12);
+      --success-bg: rgba(16, 185, 129, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 1.25rem 2.5%;
+      border-bottom: 1px solid var(--card-border);
+      background-color: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(8px);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #a5b4fc 0%, #38bdf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      background-color: var(--success-bg);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .status-dot {
+      width: 0.5rem;
+      height: 0.5rem;
+      border-radius: 50%;
+      background-color: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+
+    /* Strict Horizontal Layout: 20% Left (Form), 70% Right (Table), 10% Spacing (2.5% sides + 5% gap) */
+    .main-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      width: 100%;
+      padding: 2.5%;
+      gap: 5%;
+      box-sizing: border-box;
+      flex: 1;
+    }
+
+    .panel-form {
+      width: 20%;
+      flex: 0 0 20%;
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+
+    .panel-table {
+      width: 70%;
+      flex: 0 0 70%;
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      overflow-x: auto;
+    }
+
+    .panel-header {
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .panel-header h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .panel-header p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.2rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.825rem;
+      font-weight: 500;
+      margin-bottom: 0.4rem;
+      color: #cbd5e1;
+    }
+
+    input[type="text"],
+    input[type="date"] {
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      background-color: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 0.5rem;
+      color: var(--text-main);
+      font-size: 0.875rem;
+      outline: none;
+      transition: all 0.2s ease-in-out;
+    }
+
+    input[type="text"]:focus,
+    input[type="date"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25);
+    }
+
+    .helper-text {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 0.35rem;
+      line-height: 1.3;
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background-color: var(--primary);
+      color: white;
+      font-weight: 600;
+      font-size: 0.875rem;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    .btn-submit:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-submit:active {
+      transform: scale(0.98);
+    }
+
+    .alert {
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.8rem;
+      margin-bottom: 1rem;
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .alert-danger {
+      background-color: var(--danger-bg);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+    }
+
+    .alert-success {
+      background-color: var(--success-bg);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #6ee7b7;
+    }
+
+    /* Table styles */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th {
+      background-color: #0f172a;
+      color: #94a3b8;
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    td {
+      padding: 0.85rem 1rem;
+      font-size: 0.875rem;
+      border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+      color: #e2e8f0;
+    }
+
+    tr:hover td {
+      background-color: rgba(51, 65, 85, 0.2);
+    }
+
+    .badge-id {
+      background-color: #334155;
+      color: #94a3b8;
+      font-weight: 600;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.375rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    footer {
+      padding: 1rem 2.5%;
+      border-top: 1px solid var(--card-border);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1 class="brand-title">Gestión de Personas | Pipeline CI/CD</h1>
+      <p style="font-size: 0.75rem; color: #94a3b8;">Django 4.2 + FastAPI + PostgreSQL + Docker</p>
+    </div>
+    <div class="badge-status">
+      <span class="status-dot"></span>
+      <span>API & Base de Datos Activas</span>
+    </div>
+  </header>
+
+  <main class="main-container">
+    <!-- Panel Izquierdo: Formulario de Registro (20% ancho estricto) -->
+    <section class="panel-form" id="panel-formulario" aria-labelledby="form-heading">
+      <div class="panel-header">
+        <h2 id="form-heading">Registrar Persona</h2>
+        <p>Validación estricta de 2 a 4 palabras</p>
+      </div>
+
+      <div id="alert-box" class="alert" role="alert"></div>
+
+      <form id="persona-form" novalidate>
+        <div class="form-group">
+          <label for="nombres_completos">Nombres Completos</label>
+          <input
+            type="text"
+            id="nombres_completos"
+            name="nombres_completos"
+            maxlength="60"
+            pattern="^[A-Za-zÁÉÍÓÚáéíóúÑñÜü]+( [A-Za-zÁÉÍÓÚáéíóúÑñÜü]+){1,3}$"
+            required
+            placeholder="Ej: Juan Carlos Perez Gomez"
+            autocomplete="name"
+          >
+          <p class="helper-text">Solo letras y espacios simples. De 2 a 4 palabras (máx. 60 carac.).</p>
+        </div>
+
+        <div class="form-group">
+          <label for="fecha_nacimiento">Fecha de Nacimiento</label>
+          <input
+            type="date"
+            id="fecha_nacimiento"
+            name="fecha_nacimiento"
+            min="1970-01-01"
+            max="2100-12-31"
+            required
+          >
+          <p class="helper-text">Rango permitido: 01/01/1970 a 31/12/2100.</p>
+        </div>
+
+        <button type="submit" class="btn-submit" id="btn-guardar">
+          <span>Guardar Registro</span>
+        </button>
+      </form>
+    </section>
+
+    <!-- Panel Derecho: Tabla de Personas (70% ancho estricto) -->
+    <section class="panel-table" id="panel-tabla" aria-labelledby="table-heading">
+      <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <h2 id="table-heading">Registros Almacenados</h2>
+          <p>Datos consultados en tiempo real desde PostgreSQL vía FastAPI</p>
+        </div>
+        <span id="total-registros" style="font-size: 0.8rem; font-weight: 600; color: #a5b4fc;">0 registros</span>
+      </div>
+
+      <div class="table-container">
+        <table id="tabla-personas">
+          <thead>
+            <tr>
+              <th style="width: 10%;">ID</th>
+              <th style="width: 50%;">Nombres Completos</th>
+              <th style="width: 25%;">Fecha de Nacimiento</th>
+              <th style="width: 15%;">Registrado</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-body">
+            <tr>
+              <td colspan="4" class="empty-state">Cargando registros...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Práctica de Ingeniería de Software | Pipeline CI/CD GitHub Actions & Contenedores Docker</p>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('persona-form');
+      const nombresInput = document.getElementById('nombres_completos');
+      const fechaInput = document.getElementById('fecha_nacimiento');
+      const alertBox = document.getElementById('alert-box');
+      const tablaBody = document.getElementById('tabla-body');
+      const totalRegistros = document.getElementById('total-registros');
+      const btnGuardar = document.getElementById('btn-guardar');
+
+      const REGEX_NOMBRES = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü]+( [A-Za-zÁÉÍÓÚáéíóúÑñÜü]+){1,3}$/;
+      const FECHA_MIN = '1970-01-01';
+      const FECHA_MAX = '2100-12-31';
+
+      function showAlert(message, type = 'danger') {
+        alertBox.className = `alert alert-${type}`;
+        alertBox.textContent = message;
+        alertBox.style.display = 'block';
+      }
+
+      function hideAlert() {
+        alertBox.style.display = 'none';
+        alertBox.textContent = '';
+      }
+
+      async function cargarPersonas() {
+        try {
+          const res = await fetch('/api/personas', { credentials: 'same-origin' });
+          if (!res.ok) {
+            throw new Error(`Error HTTP: ${res.status}`);
+          }
+          const personas = await res.json();
+          renderTabla(personas);
+        } catch (err) {
+          tablaBody.innerHTML = `<tr><td colspan="4" class="empty-state" style="color: var(--danger)">Error al cargar registros: ${err.message}</td></tr>`;
+        }
+      }
+
+      function renderTabla(personas) {
+        totalRegistros.textContent = `${personas.length} registro${personas.length === 1 ? '' : 's'}`;
+        if (!personas || personas.length === 0) {
+          tablaBody.innerHTML = `<tr><td colspan="4" class="empty-state">No hay personas registradas aún. Completa el formulario para agregar una.</td></tr>`;
+          return;
+        }
+
+        tablaBody.innerHTML = personas.map(p => {
+          const fechaReg = p.creado_en ? new Date(p.creado_en).toLocaleDateString('es-EC') : '-';
+          return `
+            <tr>
+              <td><span class="badge-id">#${p.id}</span></td>
+              <td style="font-weight: 500;">${escapeHtml(p.nombres_completos)}</td>
+              <td>${p.fecha_nacimiento}</td>
+              <td style="color: var(--text-muted); font-size: 0.8rem;">${fechaReg}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      function validarFrontend(nombres, fecha) {
+        if (!nombres) {
+          return "El campo nombres completos es obligatorio.";
+        }
+        if (nombres.length > 60) {
+          return "El nombre completo no puede superar los 60 caracteres.";
+        }
+        if (!REGEX_NOMBRES.test(nombres)) {
+          return "Nombres completos inválido: use solo letras del español y entre 2 y 4 palabras separadas por un espacio.";
+        }
+        const words = nombres.trim().split(' ');
+        if (words.length < 2 || words.length > 4) {
+          return "Debe ingresar entre 2 y 4 palabras (1-2 nombres y 1-2 apellidos).";
+        }
+
+        if (!fecha) {
+          return "La fecha de nacimiento es obligatoria.";
+        }
+        if (fecha < FECHA_MIN || fecha > FECHA_MAX) {
+          return `La fecha de nacimiento debe estar entre ${FECHA_MIN} y ${FECHA_MAX}.`;
+        }
+
+        return null;
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideAlert();
+
+        const nombres = nombresInput.value.trim();
+        const fecha = fechaInput.value;
+
+        // Capa 1 de validación: Frontend
+        const errorValidation = validarFrontend(nombres, fecha);
+        if (errorValidation) {
+          showAlert(errorValidation, 'danger');
+          return;
+        }
+
+        btnGuardar.disabled = true;
+        btnGuardar.innerHTML = '<span>Guardando...</span>';
+
+        try {
+          const res = await fetch('/api/personas', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              nombres_completos: nombres,
+              fecha_nacimiento: fecha
+            })
+          });
+
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            let msg = 'Error al registrar persona.';
+            if (errData.detail) {
+              if (Array.isArray(errData.detail)) {
+                msg = errData.detail.map(d => d.msg).join('; ');
+              } else {
+                msg = errData.detail;
+              }
+            } else if (errData.error) {
+              msg = errData.error;
+            }
+            throw new Error(msg);
+          }
+
+          showAlert('Persona registrada exitosamente en PostgreSQL.', 'success');
+          form.reset();
+          await cargarPersonas();
+          setTimeout(hideAlert, 4000);
+        } catch (err) {
+          showAlert(err.message, 'danger');
+        } finally {
+          btnGuardar.disabled = false;
+          btnGuardar.innerHTML = '<span>Guardar Registro</span>';
+        }
+      });
+
+      // Carga inicial de datos
+      cargarPersonas();
+    });
+  </script>
+</body>
+</html>
