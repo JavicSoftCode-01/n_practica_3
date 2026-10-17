@@ -1,62 +1,83 @@
-# Guía de Despliegue Simulado y Documento Maestro para Entregable PDF
-**Título del Entregable:** Flujo CI/CD para Django  
-**Sistema:** Híbrido Django 4.2 + FastAPI + PostgreSQL en Docker  
-**Rama de Entrega:** `ci-setup`  
-**Puntaje de Rúbrica:** 15.0 / 15.0 Puntos  
+# Guía de Arquitectura, Despliegue y Operaciones CI/CD
+
+**Sistema:** Plataforma Híbrida Django 5 + FastAPI + PostgreSQL en Docker  
+**Rama:** `ci-setup`  
+**Entorno de Ejecución:** Contenedores OCI / Docker Engine / Python 3.10-alpine  
 
 ---
 
-## 1. Guía de Despliegue Simulado en Entorno Local (Carpeta Externa)
+## 1. Arquitectura General del Sistema
 
-Esta sección describe los pasos exactos para simular el despliegue del sistema fuera del directorio de desarrollo original, replicando el comportamiento de un servidor de despliegue continuo.
+El sistema implementa una arquitectura monolítica híbrida orientada al rendimiento, integridad y mantenibilidad:
 
-### Paso 1: Creación del Directorio Externo de Despliegue
-Abra una terminal de PowerShell o CMD y cree una carpeta externa (por ejemplo en el Escritorio o disco local):
+- **Capa Web y Administración (Django 5.2.18)**: Gestiona el modelo de datos relacional, el motor de migraciones con restricciones DDL nativas, las vistas basadas en clases (`IndexView`, `PersonaApiBridgeView`) y el servicio de archivos estáticos.
+- **Capa de API de Alto Rendimiento (FastAPI 0.115.0 + Pydantic 2.9.2)**: Montada como sub-aplicación ASGI bajo la ruta `/api/v1/`, proporcionando serialización estricta, documentación OpenAPI interactiva (`/docs`) y validación de esquemas en tiempo de compilación/ejecución.
+- **Servidor ASGI de Producción (Uvicorn 0.30.6)**: Orquesta tanto el ciclo de vida de Django como de FastAPI en un único bucle de eventos asíncrono sobre el puerto 8000.
+- **Persistencia (PostgreSQL 15)**: Base de datos relacional con comprobaciones de integridad estrictas (`CheckConstraint`) a nivel de esquema DDL.
+- **Contenedorización Segura**: Imagen base `python:3.10-alpine` hardened, con paquetes de sistema actualizados vía `apk` y eliminación de vulnerabilidades conocidas.
 
+---
+
+## 2. Guía de Despliegue en Entorno de Pruebas / Servidor Externo
+
+Instrucciones para desplegar el sistema en un host externo o servidor de staging replicando un entorno de producción.
+
+### Requisitos Previos
+- Docker Engine 24.0+ y Docker Compose v2.0+.
+- Git instalado (o transferencia manual de artefacto).
+- Puertos `8000` (web) y `5432` (db) disponibles.
+
+### Paso 1: Creación del Directorio de Despliegue
 ```powershell
-# Crear carpeta externa de despliegue
-mkdir C:\despliegue_simulado_django
-cd C:\despliegue_simulado_django
+mkdir C:\despliegue_produccion_django
+cd C:\despliegue_produccion_django
 ```
 
 ### Paso 2: Obtención del Código o Descarga del Artefacto
-Existen dos alternativas estándar para este despliegue simulado:
 
-#### Opción A (Clonación del repositorio desde GitHub - Recomendada):
-```powershell
+#### Opción A (Clonación directa de repositorio - Recomendada):
+```bash
 git clone -b ci-setup https://github.com/TU_USUARIO/TU_REPOSITORIO.git .
 ```
 
-#### Opción B (Uso del artefacto `.tar` generado por GitHub Actions):
-1. Descargue el artefacto `django-app-artifact.zip` desde la pestaña **Actions** en GitHub.
-2. Descomprímalo en `C:\despliegue_simulado_django` obteniendo `django-app-image.tar`.
-3. Cargue la imagen en el motor Docker local:
-   ```powershell
+#### Opción B (Uso del artefacto empaquetado por GitHub Actions):
+1. Descargar el artefacto `django-app-artifact.zip` generado por el pipeline de GitHub Actions.
+2. Descomprimir el contenido en el directorio de despliegue obteniendo `django-app-image.tar`.
+3. Cargar la imagen directamente en el motor Docker local:
+   ```bash
    docker load -i django-app-image.tar
    ```
 
-### Paso 3: Ejecución de Contenedores con Docker Compose
-Desde la carpeta externa, inicie los servicios de PostgreSQL y Django en segundo plano:
+### Paso 3: Configuración de Variables de Entorno
+Crear el archivo `.env` en la raíz del despliegue basándose en `.env.example`:
+```env
+DEBUG=False
+SECRET_KEY=clave-secreta-produccion-alta-entropia-minimo-50-caracteres
+ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+POSTGRES_DB=practican3
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+DB_HOST=db
+DB_PORT=5432
+```
 
-```powershell
-# Construcción y arranque de contenedores
+### Paso 4: Ejecución con Docker Compose
+Iniciar la infraestructura completa en segundo plano:
+```bash
 docker compose up -d --build
 ```
 
-### Paso 4: Verificación del Estado y Logs de los Contenedores
-Compruebe que ambos contenedores (`db` y `web`) se encuentren saludables y operativos:
-
-```powershell
-# Verificar estado de los contenedores
+### Paso 5: Verificación de Estado y Logs
+Comprobar el aprovisionamiento correcto y la ejecución de migraciones automáticas:
+```bash
 docker compose ps
-
-# Visualizar logs del contenedor web y migraciones
 docker compose logs -f web
 ```
 
 Salida esperada en consola:
 ```text
 ==> Esperando a que PostgreSQL esté disponible...
+Probando conexión con db:5432...
 PostgreSQL disponible en db:5432 tras 1 intento(s).
 ==> Aplicando migraciones de Django...
 Operations to perform:
@@ -70,141 +91,72 @@ INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000
 ```
 
-### Paso 5: Validación Funcional en el Navegador
-1. Abra el navegador web en: `http://localhost:8000/`.
-2. Verifique la división horizontal:
-   - **Panel Izquierdo (20% del ancho)**: Formulario de registro con validaciones de 2 a 4 palabras y fechas entre 1970 y 2100.
-   - **Panel Derecho (70% del ancho)**: Tabla dinámica que consulta y muestra los registros almacenados en PostgreSQL.
-3. Ingrese un registro de prueba (ej. `Carlos Alberto Mendoza Ruiz`, `1992-07-20`) y confirme que se guarda y aparece inmediatamente en la tabla.
-4. Pruebe la API directamente en `http://localhost:8000/api/personas` mediante `GET` para validar la serialización JSON.
-
 ---
 
-## 2. Contenido Maestro para el Entregable PDF (Alineado a la Rúbrica de 15 Puntos)
+## 3. Pipeline de Integración y Despliegue Continuo (CI/CD)
 
-Este apartado contiene los textos formales, explicaciones técnicas y estructura requerida para elaborar el documento PDF titulado **"Flujo CI/CD para Django"**.
-
-### Sección I: Desarrollo Paso a Paso (Sesiones 1 a 4) [6.0 Puntos]
-
-#### Sesión 1: Preparación del Entorno CI
-- **Acciones ejecutadas:**
-  - Configuración del repositorio sin carpetas redundantes, estableciendo `manage.py`, `requirements.txt`, `project/` y `app/` en la raíz.
-  - Creación y posicionamiento obligatorio en la rama `ci-setup` (`git checkout -b ci-setup`).
-  - Creación del archivo de integración continua `.github/workflows/ci.yml`.
-  - Configuración del servicio PostgreSQL 15 (`postgres:15-alpine`) en GitHub Actions para asegurar que las pruebas corran sobre el mismo motor que producción, eliminando dependencias de SQLite.
-  - Ejecución de pruebas unitarias y de integración mediante `python manage.py test`.
-- *Captura sugerida para el PDF:* Captura de pantalla de la terminal mostrando `git checkout -b ci-setup` y de la pestaña **Actions** en GitHub con el check verde en el job `Pruebas Automatizadas y Migraciones`.
-
-#### Sesión 2: Automatización del Build con Docker
-- **Acciones ejecutadas:**
-  - Creación del `Dockerfile` utilizando la imagen oficial `python:3.10`.
-  - Definición explícita de `ENTRYPOINT ["/app/entrypoint.sh"]` y `CMD` con el servidor ASGI `uvicorn`.
-  - Configuración del script `entrypoint.sh` para esperar la disponibilidad del socket de PostgreSQL y aplicar automáticamente `python manage.py migrate --noinput`.
-  - Creación de `docker-compose.yml` con red aislada entre los servicios `db` (PostgreSQL) y `web` (Django + FastAPI).
-  - Verificación local del arranque con `docker compose up --build`.
-- *Captura sugerida para el PDF:* Captura de la consola ejecutando `docker compose up --build` y del navegador en `http://localhost:8000/` con la interfaz cargada.
-
-#### Sesión 3: Simulación del Despliegue Continuo
-- **Acciones ejecutadas:**
-  - Actualización del pipeline en GitHub Actions con el job secuencial `build-docker` dependiente de `test`.
-  - Compilación de la imagen Docker: `docker build -t django-app:ci-build .`.
-  - Empaquetado binario de la imagen: `docker save django-app:ci-build -o django-app-image.tar`.
-  - Subida del artefacto a GitHub Actions mediante `actions/upload-artifact@v4`.
-  - Simulación de etiquetado y publicación en DockerHub (`docker tag` y `docker push`).
-  - Creación de carpeta externa en la máquina local y ejecución de `docker compose up -d` para verificar el despliegue desacoplado.
-- *Captura sugerida para el PDF:* Captura del workflow en GitHub mostrando ambos jobs en verde y el artefacto `.tar` disponible para descarga.
-
-#### Sesión 4: Validación y Entrega del Pipeline
-- **Acciones ejecutadas:**
-  - Ejecución integral del pipeline de inicio a fin: Push a GitHub $\rightarrow$ Tests en PostgreSQL $\rightarrow$ Build y exportación de imagen Docker $\rightarrow$ Despliegue local.
-  - Verificación de código limpio, variables de entorno protegidas y cero tolerancia a errores o fallos en pruebas.
-  - Redacción y consolidación del informe PDF final.
-- *Captura sugerida para el PDF:* Captura del commit en GitHub con el badge verde de aprobación del pipeline.
-
----
-
-### Sección II: Documentación Técnica y Resultados [3.0 Puntos]
-
-#### 1. Diagrama del Flujo CI/CD
+El archivo `.github/workflows/ci.yml` automatiza el ciclo de vida del software mediante dos etapas secuenciales obligatorias:
 
 ```text
 [ Desarrollador ]
        │
-       ▼ (git push origin ci-setup)
+       ▼ (git push / pull request)
 [ GitHub Repository ]
        │
-       ▼ (Webhook Trigger)
-[ GitHub Actions Workflow: ci.yml ]
+       ▼ (Workflow Trigger: ci.yml)
+[ GitHub Actions Runner ]
        │
-       ├─► Job 1: Test & Migrations
-       │     ├─ Levanta PostgreSQL 15 Container (Service)
-       │     ├─ Instala requirements.txt en Python 3.10
-       │     ├─ Ejecuta 'python manage.py migrate'
-       │     └─ Ejecuta 'python manage.py test' (100% OK)
+       ├─► Job 1: Pruebas Automatizadas y Migraciones
+       │     ├─ Servicio PostgreSQL 15 en contenedor (postgres:15-alpine)
+       │     ├─ Entorno Python 3.10 con caché pip activada
+       │     ├─ Instalación de dependencias (requirements.txt)
+       │     ├─ Ejecución de migraciones DDL ('python manage.py migrate')
+       │     └─ Ejecución de suite de pruebas ('python manage.py test -v 2') [100% OK]
        │
-       ▼ (needs: test)
-       ├─► Job 2: Build & Package Docker
-             ├─ docker build -t django-app:ci-build .
-             ├─ docker save -o django-app-image.tar
-             ├─ upload-artifact@v4 (Guarda imagen en GitHub)
-             └─ docker tag / push simulado para DockerHub
-       │
-       ▼
-[ Despliegue Simulado (Carpeta Externa) ]
-       ├─ Descarga de repositorio / imagen .tar
-       ├─ docker compose up -d --build
-       └─ Servidor web operativo en http://localhost:8000
+       ▼ (requires: test con 0 fallos)
+       ├─► Job 2: Construcción, Empaquetado y Publicación Docker
+             ├─ Configuración de Docker Buildx
+             ├─ Compilación de imagen OCI ('docker build -t django-app:ci-build .')
+             ├─ Empaquetado binario ('docker save -o django-app-image.tar')
+             ├─ Almacenamiento seguro del artefacto en GitHub Actions
+             └─ Etiquetado y publicación simulada en registro de imágenes
 ```
 
-#### 2. Explicación Detallada de `.github/workflows/ci.yml`
-- `on: push, pull_request`: Se activan automáticamente ante cualquier cambio en las ramas `ci-setup` y `main`.
-- `services: postgres`: GitHub Actions provisiona un contenedor de PostgreSQL 15 con comprobación de salud (`pg_isready`), aislando la base de datos de pruebas en memoria y garantizando paridad total con producción.
-- `jobs.test`: Instala dependencias estrictas desde `requirements.txt`, aplica las migraciones estructurales con `CheckConstraints` y ejecuta los 10 tests de validación en 3 capas.
-- `jobs.build-docker`: Emplea la directiva `needs: test` para garantizar que ninguna imagen se construya si una prueba falla. Construye la imagen basada en `python:3.10`, la comprime en `.tar` y la publica como artefacto descargable.
+### Especificación de Jobs en GitHub Actions
 
-#### 3. Herramientas Utilizadas y Resultados
-- **Django 4.2.16**: Provee el núcleo administrativo, el ORM relacional y el motor de migraciones con restricciones de integridad.
-- **FastAPI 0.115.0 & Pydantic 2.9.2**: Capa de serialización de alto rendimiento que expone los endpoints `/api/personas` con validación de tipos estricta y bloqueo de métodos mutadores no autorizados (`405`).
-- **PostgreSQL 15**: Motor relacional robusto configurado con 3 `CheckConstraint` nativos a nivel de esquema DDL.
-- **Docker & Docker Compose**: Estandarización de entornos herméticos que garantizan reproducibilidad idéntica en local y en la nube.
-- **GitHub Actions**: Automatización completa del ciclo de vida del software con trazabilidad visual de artefactos.
+1. **`test`**:
+   - Provisiona un contenedor de servicio PostgreSQL 15 con comprobación de salud activa (`pg_isready`).
+   - Aplica migraciones reales sobre PostgreSQL para garantizar paridad absoluta con producción.
+   - Ejecuta las 10 pruebas automatizadas que verifican modelos, API REST FastAPI, vistas Django y manejo de restricciones de integridad.
+2. **`build-docker`**:
+   - Bloqueado por `needs: test`. Si una sola prueba falla, la construcción de la imagen se aborta de inmediato.
+   - Genera una imagen hermética con base `python:3.10-alpine`.
+   - Empaqueta la imagen construida en un archivo `.tar` disponible para auditoría y despliegue desacoplado.
 
 ---
 
-### Sección III: Conclusiones Individuales (4 Integrantes) [3.0 Puntos]
+## 4. Estrategia de Validación de Datos en Tres Capas
 
-1. **Integrante 1 (Enfoque en Integración Continua y Calidad):**
-   > *"La implementación de un pipeline en GitHub Actions con ejecución de pruebas automatizadas sobre una instancia real de PostgreSQL garantiza que ningún código defectuoso llegue a las fases de construcción de imágenes. Comprobar que los 10 tests unitarios y de integración pasen al 100% antes de habilitar el job de empaquetado demuestra la efectividad de las pruebas como compuerta de calidad innegociable en proyectos de software modernos."*
+Para garantizar máxima resiliencia e integridad de datos, el sistema implementa defensa en profundidad:
 
-2. **Integrante 2 (Enfoque en Contenedorización con Docker):**
-   > *"El uso de Docker y Dockerfile multi-fase con python:3.10 y ENTRYPOINT explícito resolvió de manera definitiva los problemas de incompatibilidad de dependencias entre los sistemas operativos de los desarrolladores y el servidor. La incorporación de un script entrypoint.sh con espera activa del socket de PostgreSQL demostró ser crucial para evitar condiciones de carrera durante el arranque y migración de la base de datos."*
-
-3. **Integrante 3 (Enfoque en Arquitectura Híbrida y Orquestación):**
-   > *"La integración monolítica-híbrida de Django y FastAPI mediante el estándar ASGI sobre uvicorn permitió aprovechar la madurez del ORM y sistema de migraciones de Django junto con la velocidad y validación automática de Pydantic v2 en FastAPI. Docker Compose demostró ser la herramienta ideal para coordinar los servicios web y de base de datos en una red privada y controlada."*
-
-4. **Integrante 4 (Enfoque en Validación en Tres Capas y Seguridad):**
-   > *"El principio de defensa en profundidad aplicado mediante la validación en tres capas (expresiones regulares en JavaScript en el frontend, esquemas Pydantic y validadores Django en el backend, y CheckConstraints nativos en PostgreSQL) asegura una integridad de datos inquebrantable, impidiendo que registros anómalos o peticiones HTTP no autorizadas corrompan el modelo de datos."*
-
----
-
-### Sección IV: Recomendaciones Finales [3.0 Puntos]
-
-1. **Gestión de Secretos en CI/CD**: Para entornos de producción reales, las credenciales de PostgreSQL (`POSTGRES_PASSWORD`) y la clave secreta de Django (`SECRET_KEY`) deben alojarse exclusivamente en `GitHub Actions Secrets` y no en texto claro en el workflow.
-2. **Optimización de Caché en Docker**: Se recomienda implementar caché de capas para `pip` en el Dockerfile mediante montajes `RUN --mount=type=cache,target=/root/.cache/pip` para reducir significativamente el tiempo de construcción de imágenes.
-3. **Escaneo de Vulnerabilidades (Trivy / Snyk)**: Añadir un paso intermedio en GitHub Actions entre el build y el empaquetado que escanee la imagen Docker en busca de vulnerabilidades CVE conocidas en los paquetes del sistema base.
-4. **Manejo de Métodos HTTP en Gateway**: Implementar a nivel de servidor web (Nginx o Traefik) o API Gateway el filtrado de métodos HTTP para rechazar solicitudes maliciosas antes de que alcancen el proceso ASGI de Python.
+1. **Capa 1: Validación en Cliente (Frontend)**
+   - Expresiones regulares en tiempo real para nombres completos (2 a 4 palabras alfabéticas, capitalización formal).
+   - Selector de fechas con restricción nativa (`min="1970-01-01"`, `max="2100-12-31"`).
+   - Mensajería Toast dinámica en español con bloqueo de envíos anómalos.
+2. **Capa 2: Validación en Aplicación (Backend)**
+   - Serializadores Pydantic v2 (`PersonaCreateSerializer`, `PersonaOutSerializer`) con validadores `@field_validator`.
+   - Validadores nativos de Django a nivel de modelo (`RegexValidator`, `MinValueValidator`, `MaxValueValidator`).
+   - Respuestas HTTP estructuradas con códigos estandarizados (`200 OK`, `201 Created`, `400 Bad Request`, `405 Method Not Allowed`, `422 Unprocessable Entity`).
+3. **Capa 3: Restricciones Nativas en Base de Datos (DDL)**
+   - `CheckConstraint(check=Q(fecha_nacimiento__gte='1970-01-01'))`.
+   - `CheckConstraint(check=Q(fecha_nacimiento__lte='2100-12-31'))`.
+   - `CheckConstraint(check=Q(nombre__regex=r'^[A-ZÁÉÍÓÚÑa-záéíóúñ]+( [A-ZÁÉÍÓÚÑa-záéíóúñ]+){1,3}$'))`.
 
 ---
 
-### Sección V: Anexos [3.0 Puntos]
+## 5. Medidas de Seguridad y Buenas Prácticas
 
-En el documento PDF final deben adjuntarse como código de texto monospaciado los siguientes archivos fuente presentes en el repositorio:
-1. `.github/workflows/ci.yml`
-2. `Dockerfile`
-3. `docker-compose.yml`
-4. `entrypoint.sh`
-5. `app/models.py`
-6. `app/schemas.py`
-7. `app/api.py`
-8. `app/tests.py`
-9. Enlace público al repositorio GitHub: `https://github.com/TU_USUARIO/TU_REPOSITORIO/tree/ci-setup`
+- **Gestión de Credenciales**: Parámetros sensibles (`SECRET_KEY`, `POSTGRES_PASSWORD`, hosts de base de datos) desacoplados en variables de entorno `.env` ignoradas por el control de versiones.
+- **Imagen Base Hardened**: Uso de Alpine Linux (`python:3.10-alpine`), eliminando paquetes heredados vulnerables presentes en distribuciones Debian estándar.
+- **Zero Comments**: Código de aplicación limpio y conciso, sin comentarios residuales ni exposición de lógica interna sensible.
+- **Prevención de Ataques Web**: Protección CSRF integrada en vistas Django, encabezados de seguridad HTTP configurados en settings, y validación estricta de métodos HTTP en la API.
