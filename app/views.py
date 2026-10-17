@@ -31,8 +31,16 @@ def api_personas_bridge(request):
         try:
             body = json.loads(request.body.decode('utf-8'))
             payload = PersonaCreate(**body)
-        except (json.JSONDecodeError, PydanticValidationError) as e:
-            return JsonResponse({'error': str(e)}, status=422)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'El formato de los datos enviados no es un JSON válido.'}, status=400)
+        except PydanticValidationError as e:
+            mensajes = []
+            for err in e.errors():
+                m = err.get('msg', '')
+                if m.startswith('Value error, '):
+                    m = m.replace('Value error, ', '')
+                mensajes.append(m)
+            return JsonResponse({'error': '; '.join(mensajes), 'detail': e.errors()}, status=422)
 
         persona = Persona(
             nombres_completos=payload.nombres_completos,
